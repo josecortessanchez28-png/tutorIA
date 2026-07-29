@@ -1,9 +1,12 @@
 const API_URL = window.location.origin;
+const WS_URL = API_URL.replace(/^http/, 'ws') + '/ws';
 
 const chatArea = document.getElementById('chatArea');
 const userInput = document.getElementById('userInput');
 const sendBtn = document.getElementById('sendBtn');
 const typingIndicator = document.getElementById('typingIndicator');
+
+let currentBubble = null;
 
 function addMessage(text, isUser) {
   const div = document.createElement('div');
@@ -21,6 +24,7 @@ function addMessage(text, isUser) {
   div.appendChild(bubble);
   chatArea.appendChild(div);
   chatArea.scrollTop = chatArea.scrollHeight;
+  return bubble;
 }
 
 function showTyping() {
@@ -54,6 +58,58 @@ async function sendMessage() {
     addMessage('Error de conexión. Intenta de nuevo.', false);
   }
 }
+
+let ws = null;
+let wsQueue = [];
+
+function connectWebSocket() {
+  ws = new WebSocket(WS_URL);
+  ws.onopen = () => {
+    for (const msg of wsQueue) {
+      ws.send(JSON.stringify({ message: msg }));
+    }
+    wsQueue = [];
+  };
+  ws.onmessage = (event) => {
+    const data = JSON.parse(event.data);
+    if (data.chunk) {
+      if (!currentBubble) {
+        hideTyping();
+        currentBubble = addMessage('', false);
+      }
+      currentBubble.textContent += data.chunk;
+      chatArea.scrollTop = chatArea.scrollHeight;
+    }
+    if (data.done) {
+      currentBubble = null;
+      hideTyping();
+    }
+  };
+  ws.onclose = () => {
+    setTimeout(connectWebSocket, 3000);
+  };
+}
+
+function sendMessageStream() {
+  const text = userInput.value.trim();
+  if (!text) return;
+
+  addMessage(text, true);
+  userInput.value = '';
+  showTyping();
+  currentBubble = null;
+
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ message: text }));
+  } else {
+    wsQueue.push(text);
+    if (!ws || ws.readyState === WebSocket.CLOSED) {
+      connectWebSocket();
+    }
+  }
+}
+
+connectWebSocket();
 
 sendBtn.addEventListener('click', sendMessage);
 

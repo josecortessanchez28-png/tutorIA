@@ -1,8 +1,10 @@
 ﻿from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
+from fastapi import WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 import uvicorn
-from agent.llm_client import chat
+import json
+from agent.llm_client import chat, chat_stream
 from agent.prompts import SYSTEM_PROMPT
 
 app = FastAPI(title="TutorIA", version="0.1.0")
@@ -18,6 +20,19 @@ def health():
 def chat_endpoint(req: ChatRequest):
     response = chat(req.message, context=SYSTEM_PROMPT)
     return {"response": response}
+
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    await websocket.accept()
+    try:
+        data = await websocket.receive_text()
+        msg = json.loads(data)
+        message = msg.get("message", "")
+        for chunk in chat_stream(message, context=SYSTEM_PROMPT):
+            await websocket.send_text(json.dumps({"chunk": chunk}))
+        await websocket.send_text(json.dumps({"done": True}))
+    except WebSocketDisconnect:
+        pass
 
 app.mount("/", StaticFiles(directory="frontend", html=True), name="frontend")
 
