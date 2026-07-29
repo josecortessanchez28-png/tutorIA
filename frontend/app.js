@@ -106,13 +106,18 @@ function sendMessageStream() {
     if (!ws || ws.readyState === WebSocket.CLOSED) {
       connectWebSocket();
     }
+    setTimeout(() => {
+      if (wsQueue.length > 0) {
+        sendMessage();
+      }
+    }, 2000);
   }
 }
 
 connectWebSocket();
 
-sendBtn.addEventListener('click', sendMessage);
+sendBtn.addEventListener('click', sendMessageStream);
 
 userInput.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') sendMessage();
+  if (e.key === 'Enter') sendMessageStream();
 });
