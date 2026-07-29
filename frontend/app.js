@@ -120,31 +120,11 @@ function sendMessageStream() {
   }
 }
 
-let isStarting = false;
-
-function toggleRecording() {
-  if (isRecording) {
-    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-      mediaRecorder.stop();
-    }
-    isRecording = false;
-    micBtn.classList.remove('recording');
-    userInput.disabled = false;
-    sendBtn.disabled = false;
-    userInput.focus();
-    return;
-  }
-
+function startRecording() {
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    addMessage('Micrófono no soportado en este navegador.', false);
+    addMessage('Tu navegador no soporta grabación de audio.', false);
     return;
   }
-
-  if (isStarting) return;
-  isStarting = true;
-  micBtn.classList.add('recording');
-  userInput.disabled = true;
-  sendBtn.disabled = true;
 
   navigator.mediaDevices.getUserMedia({ audio: true })
     .then((stream) => {
@@ -154,9 +134,9 @@ function toggleRecording() {
       } else if (MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')) {
         options = { mimeType: 'audio/ogg;codecs=opus' };
       }
-      const recorder = new MediaRecorder(stream, options);
-      const mimeType = recorder.mimeType || 'audio/webm';
-      recorder.ondataavailable = (event) => {
+      mediaRecorder = new MediaRecorder(stream, options);
+      const mimeType = mediaRecorder.mimeType || 'audio/webm';
+      mediaRecorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
           const reader = new FileReader();
           reader.onload = () => {
@@ -168,23 +148,29 @@ function toggleRecording() {
           reader.readAsDataURL(event.data);
         }
       };
-      recorder.onstop = () => {
+      mediaRecorder.onstop = () => {
         stream.getTracks().forEach(t => t.stop());
       };
-      recorder.start();
-      mediaRecorder = recorder;
+      mediaRecorder.start();
       isRecording = true;
+      micBtn.classList.add('recording');
+      userInput.disabled = true;
+      sendBtn.disabled = true;
     })
     .catch((err) => {
-      isRecording = false;
-      micBtn.classList.remove('recording');
-      userInput.disabled = false;
-      sendBtn.disabled = false;
       addMessage('Error al acceder al micrófono: ' + err.message, false);
-    })
-    .finally(() => {
-      isStarting = false;
     });
+}
+
+function stopRecording() {
+  if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+    mediaRecorder.stop();
+  }
+  isRecording = false;
+  micBtn.classList.remove('recording');
+  userInput.disabled = false;
+  sendBtn.disabled = false;
+  userInput.focus();
 }
 
 connectWebSocket();
@@ -195,4 +181,6 @@ userInput.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') sendMessageStream();
 });
 
-micBtn.addEventListener('click', toggleRecording);
+micBtn.addEventListener('pointerdown', startRecording);
+micBtn.addEventListener('pointerup', stopRecording);
+micBtn.addEventListener('pointerleave', stopRecording);
