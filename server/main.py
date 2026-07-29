@@ -5,7 +5,7 @@ from pydantic import BaseModel
 import uvicorn
 import json
 import logging
-from agent.llm_client import chat, chat_stream_async
+from agent.llm_client import chat, chat_stream_async, transcribe_audio
 from agent.prompts import SYSTEM_PROMPT
 
 logging.basicConfig(level=logging.INFO)
@@ -28,14 +28,36 @@ def chat_endpoint(req: ChatRequest):
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
+    history = []
+    audio_buffer = bytearray()
     try:
         while True:
-            data = await websocket.receive_text()
-            msg = json.loads(data)
-            message = msg.get("message", "")
-            async for chunk in chat_stream_async(message, context=SYSTEM_PROMPT):
-                await websocket.send_text(json.dumps({"chunk": chunk}))
-            await websocket.send_text(json.dumps({"done": True}))
+            raw = await websocket.receive()
+            if "bytes" in raw:
+                audio_buffer.extend(raw["bytes"])
+            elif "text" in raw:
+                data = json.loads(raw["text"])
+                msg_type = data.get("type", "text")
+
+                if msg_type == "audio_end":
+                    if not audio_buffer:
+                        continue
+                    transcribed = transcribe_audio(bytes(audio_buffer))
+                    audio_buffer.clear()
+                    await websocket.send_text(json.dumps({"type": "transcribed", "text": transcribed}))
+                    message = transcribed
+                elif msg_type == "text":
+                    message = data.get("message", "")
+                else:
+                    continue
+
+                full_response = ""
+                async for chunk in chat_stream_async(message, context=SYSTEM_PROMPT, history=history):
+                    full_response += chunk
+                    await websocket.send_text(json.dumps({"chunk": chunk}))
+                await websocket.send_text(json.dumps({"done": True}))
+                history.append({"role": "user", "content": message})
+                history.append({"role": "assistant", "content": full_response})
     except WebSocketDisconnect:
         pass
     except Exception as e:

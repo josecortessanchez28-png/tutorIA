@@ -1,10 +1,12 @@
 import os
+import io
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from groq import Groq
 
 client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 MODEL = os.getenv("TUTORIA_MODEL", "llama-3.3-70b-versatile")
+WHISPER_MODEL = os.getenv("TUTORIA_WHISPER", "whisper-large-v3-turbo")
 _executor = ThreadPoolExecutor(max_workers=2)
 
 def _build_messages(message, context=None, history=None):
@@ -39,6 +41,14 @@ def _chat_stream(message, context=None, history=None):
         delta = chunk.choices[0].delta.content
         if delta:
             yield delta
+
+def transcribe_audio(audio_bytes: bytes) -> str:
+    transcription = client.audio.transcriptions.create(
+        file=("audio.webm", io.BytesIO(audio_bytes)),
+        model=WHISPER_MODEL,
+        language="es",
+    )
+    return transcription.text
 
 async def chat_stream_async(message, context=None, history=None):
     loop = asyncio.get_event_loop()
