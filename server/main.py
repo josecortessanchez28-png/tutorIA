@@ -1,4 +1,5 @@
 ﻿from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 import uvicorn
 from agent.llm_client import chat
@@ -17,6 +18,8 @@ def health():
 def chat_endpoint(req: ChatRequest):
     response = chat(req.message, context=SYSTEM_PROMPT)
     return {"response": response}
+
+app.mount("/", StaticFiles(directory="frontend", html=True), name="frontend")
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)

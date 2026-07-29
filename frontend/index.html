@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TutorIA</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Gochi+Hand&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <h1 class="logo">TutorIA</h1>
+      <p class="subtitle">Tu tutor personal con IA</p>
+    </header>
+
+    <main class="chat-area" id="chatArea">
+      <div class="message bot">
+        <div class="avatar">T</div>
+        <div class="bubble">
+          ¡Hola! Soy TutorIA. Pregúntame sobre cualquier aplicación y te guiaré paso a paso. ¿Por dónde quieres empezar?
+        </div>
+      </div>
+    </main>
+
+    <div class="typing-indicator hidden" id="typingIndicator">
+      <span class="typing-dot"></span>
+      <span class="typing-dot"></span>
+      <span class="typing-dot"></span>
+      <span class="typing-text">TutorIA está pensando</span>
+    </div>
+
+    <footer class="input-area">
+      <input type="text" id="userInput" placeholder="Escribe tu mensaje..." autofocus>
+      <button id="sendBtn">Enviar</button>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
