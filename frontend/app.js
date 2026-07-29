@@ -123,14 +123,20 @@ function sendMessageStream() {
 function toggleRecording() {
   if (isRecording) {
     stopRecording();
-  } else {
-    startRecording();
+    return;
   }
-}
 
-function startRecording() {
+  isRecording = true;
+  micBtn.classList.add('recording');
+  userInput.disabled = true;
+  sendBtn.disabled = true;
+
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
     addMessage('Tu navegador no soporta grabación de audio.', false);
+    isRecording = false;
+    micBtn.classList.remove('recording');
+    userInput.disabled = false;
+    sendBtn.disabled = false;
     return;
   }
 
@@ -160,12 +166,12 @@ function startRecording() {
         stream.getTracks().forEach(t => t.stop());
       };
       mediaRecorder.start();
-      isRecording = true;
-      micBtn.classList.add('recording');
-      userInput.disabled = true;
-      sendBtn.disabled = true;
     })
     .catch((err) => {
+      isRecording = false;
+      micBtn.classList.remove('recording');
+      userInput.disabled = false;
+      sendBtn.disabled = false;
       addMessage('Error al acceder al micrófono: ' + err.message, false);
     });
 }
