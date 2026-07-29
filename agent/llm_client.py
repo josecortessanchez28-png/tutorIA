@@ -17,6 +17,6 @@ def chat(message, context=None, history=None):
         model=MODEL,
         messages=messages,
         temperature=0.5,
-        max_tokens=512,
+        max_tokens=1024,
     )
     return response.choices[0].message.content
