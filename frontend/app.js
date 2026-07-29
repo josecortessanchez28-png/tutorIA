@@ -120,74 +120,73 @@ function sendMessageStream() {
   }
 }
 
-function toggleRecording() {
-  if (isRecording) {
-    stopRecording();
+let mediaStream = null;
+
+function setupMicrophone() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    micBtn.title = 'Micrófono no soportado';
+    micBtn.style.opacity = '0.4';
     return;
   }
+  navigator.mediaDevices.getUserMedia({ audio: true })
+    .then((stream) => {
+      mediaStream = stream;
+      micBtn.title = 'Grabar mensaje de voz';
+    })
+    .catch(() => {
+      micBtn.title = 'Micrófono no disponible';
+      micBtn.style.opacity = '0.4';
+    });
+}
+
+function toggleRecording() {
+  if (isRecording) {
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+      mediaRecorder.stop();
+    }
+    isRecording = false;
+    micBtn.classList.remove('recording');
+    userInput.disabled = false;
+    sendBtn.disabled = false;
+    userInput.focus();
+    return;
+  }
+
+  if (!mediaStream) {
+    addMessage('Micrófono no disponible. Recarga la página.', false);
+    return;
+  }
+
+  let options = {};
+  if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+    options = { mimeType: 'audio/webm;codecs=opus' };
+  } else if (MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')) {
+    options = { mimeType: 'audio/ogg;codecs=opus' };
+  }
+  mediaRecorder = new MediaRecorder(mediaStream, options);
+  const mimeType = mediaRecorder.mimeType || 'audio/webm';
+  mediaRecorder.ondataavailable = (event) => {
+    if (event.data.size > 0) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const base64 = reader.result.split(',')[1];
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ type: 'audio_data', format: mimeType, data: base64 }));
+        }
+      };
+      reader.readAsDataURL(event.data);
+    }
+  };
+  mediaRecorder.start();
 
   isRecording = true;
   micBtn.classList.add('recording');
   userInput.disabled = true;
   sendBtn.disabled = true;
-
-  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    addMessage('Tu navegador no soporta grabación de audio.', false);
-    isRecording = false;
-    micBtn.classList.remove('recording');
-    userInput.disabled = false;
-    sendBtn.disabled = false;
-    return;
-  }
-
-  navigator.mediaDevices.getUserMedia({ audio: true })
-    .then((stream) => {
-      let options = {};
-      if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
-        options = { mimeType: 'audio/webm;codecs=opus' };
-      } else if (MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')) {
-        options = { mimeType: 'audio/ogg;codecs=opus' };
-      }
-      mediaRecorder = new MediaRecorder(stream, options);
-      const mimeType = mediaRecorder.mimeType || 'audio/webm';
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          const reader = new FileReader();
-          reader.onload = () => {
-            const base64 = reader.result.split(',')[1];
-            if (ws && ws.readyState === WebSocket.OPEN) {
-              ws.send(JSON.stringify({ type: 'audio_data', format: mimeType, data: base64 }));
-            }
-          };
-          reader.readAsDataURL(event.data);
-        }
-      };
-      mediaRecorder.onstop = () => {
-        stream.getTracks().forEach(t => t.stop());
-      };
-      mediaRecorder.start();
-    })
-    .catch((err) => {
-      isRecording = false;
-      micBtn.classList.remove('recording');
-      userInput.disabled = false;
-      sendBtn.disabled = false;
-      addMessage('Error al acceder al micrófono: ' + err.message, false);
-    });
-}
-
-function stopRecording() {
-  if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-    mediaRecorder.stop();
-  }
-  isRecording = false;
-  micBtn.classList.remove('recording');
-  userInput.disabled = false;
-  sendBtn.disabled = false;
-  userInput.focus();
 }
 
 connectWebSocket();
+setupMicrophone();
 
 sendBtn.addEventListener('click', sendMessageStream);
 
