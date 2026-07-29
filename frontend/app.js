@@ -120,6 +120,14 @@ function sendMessageStream() {
   }
 }
 
+function toggleRecording() {
+  if (isRecording) {
+    stopRecording();
+  } else {
+    startRecording();
+  }
+}
+
 function startRecording() {
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
     addMessage('Tu navegador no soporta grabación de audio.', false);
@@ -181,6 +189,4 @@ userInput.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') sendMessageStream();
 });
 
-micBtn.addEventListener('pointerdown', startRecording);
-micBtn.addEventListener('pointerup', stopRecording);
-micBtn.addEventListener('pointerleave', stopRecording);
+micBtn.addEventListener('click', toggleRecording);

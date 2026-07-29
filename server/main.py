@@ -43,6 +43,12 @@ async def websocket_endpoint(websocket: WebSocket):
                     audio_bytes = base64.b64decode(data["data"])
                     fmt = data.get("format", "audio/webm")
                     logger.info(f"Audio base64: {len(data['data'])} chars -> {len(audio_bytes)} bytes, mime={fmt}")
+                    if len(audio_bytes) < 5000:
+                        await websocket.send_text(json.dumps({
+                            "type": "transcribed",
+                            "text": "[audio demasiado corto, habla un poco más]"
+                        }))
+                        continue
                     transcribed = transcribe_audio(audio_bytes, mime_type=fmt)
                     await websocket.send_text(json.dumps({"type": "transcribed", "text": transcribed}))
                     message = transcribed
