@@ -12,6 +12,15 @@ from agent.prompts import SYSTEM_PROMPT
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+class NoCacheStaticFiles(StaticFiles):
+    async def get_response(self, path: str, scope):
+        response = await super().get_response(path, scope)
+        if path.endswith(".js"):
+            response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+            response.headers["Pragma"] = "no-cache"
+            response.headers["Expires"] = "0"
+        return response
+
 app = FastAPI(title="TutorIA", version="0.1.0")
 
 class ChatRequest(BaseModel):
@@ -73,7 +82,7 @@ async def websocket_endpoint(websocket: WebSocket):
         except:
             pass
 
-app.mount("/", StaticFiles(directory="frontend", html=True), name="frontend")
+app.mount("/", NoCacheStaticFiles(directory="frontend", html=True), name="frontend")
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
