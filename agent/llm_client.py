@@ -1,5 +1,4 @@
 import os
-import io
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from groq import Groq
@@ -43,6 +42,8 @@ def _chat_stream(message, context=None, history=None):
             yield delta
 
 def transcribe_audio(audio_bytes: bytes, mime_type: str = "audio/webm") -> str:
+    import logging
+    logger = logging.getLogger(__name__)
     ext_map = {
         "audio/webm": "webm",
         "audio/webm;codecs=opus": "webm",
@@ -53,8 +54,9 @@ def transcribe_audio(audio_bytes: bytes, mime_type: str = "audio/webm") -> str:
         "audio/mpeg": "mp3",
     }
     ext = ext_map.get(mime_type, "webm")
+    logger.info(f"Transcribing {len(audio_bytes)} bytes, mime={mime_type}, ext={ext}")
     transcription = client.audio.transcriptions.create(
-        file=(f"audio.{ext}", io.BytesIO(audio_bytes)),
+        file=(f"audio.{ext}", audio_bytes),
         model=WHISPER_MODEL,
         language="es",
     )
