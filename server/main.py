@@ -29,21 +29,22 @@ def chat_endpoint(req: ChatRequest):
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
     history = []
-    audio_buffer = bytearray()
+    audio_bytes = None
     try:
         while True:
             raw = await websocket.receive()
             if "bytes" in raw:
-                audio_buffer.extend(raw["bytes"])
+                audio_bytes = raw["bytes"]
             elif "text" in raw:
                 data = json.loads(raw["text"])
                 msg_type = data.get("type", "text")
 
                 if msg_type == "audio_end":
-                    if not audio_buffer:
+                    if audio_bytes is None:
                         continue
-                    transcribed = transcribe_audio(bytes(audio_buffer))
-                    audio_buffer.clear()
+                    fmt = data.get("format", "audio/webm")
+                    transcribed = transcribe_audio(audio_bytes, mime_type=fmt)
+                    audio_bytes = None
                     await websocket.send_text(json.dumps({"type": "transcribed", "text": transcribed}))
                     message = transcribed
                 elif msg_type == "text":

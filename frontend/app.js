@@ -135,6 +135,7 @@ function startRecording() {
         options = { mimeType: 'audio/ogg;codecs=opus' };
       }
       mediaRecorder = new MediaRecorder(stream, options);
+      const mimeType = options.mimeType || 'audio/webm';
       mediaRecorder.ondataavailable = (event) => {
         if (event.data.size > 0 && ws && ws.readyState === WebSocket.OPEN) {
           ws.send(event.data);
@@ -143,10 +144,10 @@ function startRecording() {
       mediaRecorder.onstop = () => {
         stream.getTracks().forEach(t => t.stop());
         if (ws && ws.readyState === WebSocket.OPEN) {
-          ws.send(JSON.stringify({ type: 'audio_end' }));
+          ws.send(JSON.stringify({ type: 'audio_end', format: mimeType }));
         }
       };
-      mediaRecorder.start(250);
+      mediaRecorder.start();
       isRecording = true;
       micBtn.classList.add('recording');
       userInput.disabled = true;

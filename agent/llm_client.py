@@ -42,9 +42,19 @@ def _chat_stream(message, context=None, history=None):
         if delta:
             yield delta
 
-def transcribe_audio(audio_bytes: bytes) -> str:
+def transcribe_audio(audio_bytes: bytes, mime_type: str = "audio/webm") -> str:
+    ext_map = {
+        "audio/webm": "webm",
+        "audio/webm;codecs=opus": "webm",
+        "audio/ogg": "ogg",
+        "audio/ogg;codecs=opus": "ogg",
+        "audio/wav": "wav",
+        "audio/mp4": "mp4",
+        "audio/mpeg": "mp3",
+    }
+    ext = ext_map.get(mime_type, "webm")
     transcription = client.audio.transcriptions.create(
-        file=("audio.webm", io.BytesIO(audio_bytes)),
+        file=(f"audio.{ext}", io.BytesIO(audio_bytes)),
         model=WHISPER_MODEL,
         language="es",
     )
