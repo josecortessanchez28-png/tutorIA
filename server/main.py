@@ -5,7 +5,7 @@ from pydantic import BaseModel
 import uvicorn
 import json
 import logging
-from agent.llm_client import chat, chat_stream
+from agent.llm_client import chat, chat_stream_async
 from agent.prompts import SYSTEM_PROMPT
 
 logging.basicConfig(level=logging.INFO)
@@ -29,12 +29,13 @@ def chat_endpoint(req: ChatRequest):
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
     try:
-        data = await websocket.receive_text()
-        msg = json.loads(data)
-        message = msg.get("message", "")
-        async for chunk in chat_stream(message, context=SYSTEM_PROMPT):
-            await websocket.send_text(json.dumps({"chunk": chunk}))
-        await websocket.send_text(json.dumps({"done": True}))
+        while True:
+            data = await websocket.receive_text()
+            msg = json.loads(data)
+            message = msg.get("message", "")
+            async for chunk in chat_stream_async(message, context=SYSTEM_PROMPT):
+                await websocket.send_text(json.dumps({"chunk": chunk}))
+            await websocket.send_text(json.dumps({"done": True}))
     except WebSocketDisconnect:
         pass
     except Exception as e:

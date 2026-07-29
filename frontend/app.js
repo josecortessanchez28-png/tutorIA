@@ -90,9 +90,7 @@ function connectWebSocket() {
       addMessage('Error: ' + data.error, false);
     }
   };
-  ws.onclose = () => {
-    setTimeout(connectWebSocket, 3000);
-  };
+  ws.onclose = () => {};
 }
 
 function sendMessageStream() {
