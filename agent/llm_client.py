@@ -1,7 +1,8 @@
 import os
-from groq import Groq
+from groq import Groq, AsyncGroq
 
 client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+async_client = AsyncGroq(api_key=os.getenv("GROQ_API_KEY"))
 
 MODEL = os.getenv("TUTORIA_MODEL", "llama-3.3-70b-versatile")
 
@@ -24,16 +25,16 @@ def chat(message, context=None, history=None):
     )
     return response.choices[0].message.content
 
-def chat_stream(message, context=None, history=None):
+async def chat_stream(message, context=None, history=None):
     messages = _build_messages(message, context, history)
-    stream = client.chat.completions.create(
+    stream = await async_client.chat.completions.create(
         model=MODEL,
         messages=messages,
         temperature=0.5,
         max_tokens=1024,
         stream=True,
     )
-    for chunk in stream:
+    async for chunk in stream:
         delta = chunk.choices[0].delta.content
         if delta:
             yield delta

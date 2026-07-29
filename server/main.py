@@ -4,8 +4,12 @@ from fastapi import WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 import uvicorn
 import json
+import logging
 from agent.llm_client import chat, chat_stream
 from agent.prompts import SYSTEM_PROMPT
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="TutorIA", version="0.1.0")
 
@@ -28,11 +32,17 @@ async def websocket_endpoint(websocket: WebSocket):
         data = await websocket.receive_text()
         msg = json.loads(data)
         message = msg.get("message", "")
-        for chunk in chat_stream(message, context=SYSTEM_PROMPT):
+        async for chunk in chat_stream(message, context=SYSTEM_PROMPT):
             await websocket.send_text(json.dumps({"chunk": chunk}))
         await websocket.send_text(json.dumps({"done": True}))
     except WebSocketDisconnect:
         pass
+    except Exception as e:
+        logger.error(f"WebSocket error: {e}")
+        try:
+            await websocket.send_text(json.dumps({"error": str(e), "done": True}))
+        except:
+            pass
 
 app.mount("/", StaticFiles(directory="frontend", html=True), name="frontend")
 

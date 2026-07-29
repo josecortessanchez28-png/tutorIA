@@ -84,6 +84,11 @@ function connectWebSocket() {
       currentBubble = null;
       hideTyping();
     }
+    if (data.error) {
+      currentBubble = null;
+      hideTyping();
+      addMessage('Error: ' + data.error, false);
+    }
   };
   ws.onclose = () => {
     setTimeout(connectWebSocket, 3000);
@@ -106,11 +111,6 @@ function sendMessageStream() {
     if (!ws || ws.readyState === WebSocket.CLOSED) {
       connectWebSocket();
     }
-    setTimeout(() => {
-      if (wsQueue.length > 0) {
-        sendMessage();
-      }
-    }, 2000);
   }
 }
 
