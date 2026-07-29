@@ -1,9 +1,9 @@
 ﻿# MEMORIA DEL PROYECTO: TutorIA
 
-> **Versión:** 0.1.0 — Fase 0: Foundation  
+> **Versión:** 1.2.0 — Frontend + Config YAML  
 > **Fecha:** 29 Julio 2026  
-> **Autor:** Jose (josedell)  
-> **Repositorio:** *pendiente de crear en GitHub*
+> **Autor:** Jose (josecortessanchez28-png)  
+> **Repositorio:** https://github.com/josecortessanchez28-png/TutorIA
 
 ---
 
@@ -369,3 +369,31 @@ pydantic>=2
 | RPD | Requests Per Day — Peticiones por día |
 | TPM | Tokens Per Minute — Tokens por minuto |
 | LPU | Language Processing Unit — Hardware de inferencia de Groq |
+
+## 11. HISTORIAL DE VERSIONES
+
+### v1.2.0 — Config YAML + Concision (29 Jul 2026)
+- Nuevo sistema de configuración externa: `agent/agent_config.yaml`
+  - Persona, reglas, formato y límites del LLM en YAML editable sin tocar código
+  - System prompt se construye dinámicamente desde el YAML
+- Respuestas optimizadas para conversación fluida:
+  - max_tokens: 2048 → 1024
+  - Sin markdown, asteriscos, negritas ni símbolos
+  - Máximo 2-3 frases por defecto, expande si el usuario pide más
+  - Temperatura reducida 0.7 → 0.5
+
+### v1.1.0 — Frontend visual + paleta ELJOSE (29 Jul 2026)
+- Frontend web completo: index.html + style.css + app.js
+- Paleta oscura neón: #0F0D1A fondo, #A855F7 morado, #EC4899 rosa
+- Fuentes Google: Black Ops One (títulos), Gochi Hand (subtítulos)
+- Chat visual con burbujas, typing indicator, scroll automático
+- FastAPI sirve frontend como estáticos en GET /
+- Gradiente principal: linear-gradient(135deg, #A855F7, #EC4899)
+
+### v1.0.0 — Primer deploy (29 Jul 2026)
+- FastAPI server con /health y POST /chat
+- Cliente Groq API real con llama-3.3-70b-versatile
+- System prompt inicial (tutor paso a paso, español, voz)
+- Dockerfile + render.yaml para deploy en Render
+- Despliegue en https://tutoria-v1n7.onrender.com
+- Push a GitHub via API (sin git local)

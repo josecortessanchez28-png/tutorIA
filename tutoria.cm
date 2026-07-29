@@ -5,7 +5,7 @@
 
 === INFORMACIÓN GENERAL ===
 Nombre: TutorIA
-Repositorio: https://github.com/josedell/TutorIA (pendiente de crear)
+Repositorio: https://github.com/josecortessanchez28-png/TutorIA
 Propósito: Agente tutor que guía al usuario paso a paso en el uso de aplicaciones complejas mediante voz y pantalla compartida, usando IA en la nube.
 
 === ARQUITECTURA ===
@@ -28,17 +28,15 @@ Propósito: Agente tutor que guía al usuario paso a paso en el uso de aplicacio
 
 === STACK TECNOLÓGICO ===
 Lenguaje: Python 3.12+
-Framework web: FastAPI + Uvicorn
-LLM Principal: Groq API (llama-3.3-70b-versatile, llama-3.1-8b-instant)
-LLM Fallback: OpenRouter auto-router (openrouter/free)
-STT: Groq Whisper large-v3-turbo (API, 2000 req/día gratis)
-TTS: edge-tts (API Microsoft, gratis, voces naturales)
-Web Search: duckduckgo_search (sin API key, sin límites)
-Screen Capture: JavaScript Screen Capture API (navegador -> servidor)
-OCR: PaddleOCR o LLM con visión (Groq/OpenRouter)
-Vector DB: ChromaDB (gratis, local en servidor)
-Hosting Cloud: Koyeb (1GB RAM, 0.5 CPU, sin sleep) o Render (512MB, 0.1 CPU, 750h/mes)
-Despliegue: Docker + GitHub Actions
+Framework web: FastAPI + Uvicorn + Pydantic
+LLM Principal: Groq API (llama-3.3-70b-versatile) — activo
+LLM Fallback: OpenRouter auto-router (openrouter/free) — pendiente API key
+STT: Groq Whisper large-v3-turbo — pendiente de integrar
+TTS: edge-tts — pendiente de integrar
+Web Search: duckduckgo_search — pendiente de integrar
+Frontend: HTML/CSS/JS vanilla — activo (chat visual)
+Hosting: Render Web Service (free tier) — activo
+Despliegue: GitHub push → Render auto-deploy — activo
 
 === PREFERENCIAS Y REGLAS DE TRABAJO (MEMORIZADAS) ===
 1. **NADA LOCAL**: Todo cloud, siempre. No sugerir jamás ejecución local de modelos. Repetido: NO LOCAL.
@@ -47,36 +45,37 @@ Despliegue: Docker + GitHub Actions
 4. **INVESTIGAR ANTES DE AFIRMAR**: No asumir datos técnicos sin verificarlos. Buscar información actualizada.
 5. **PASO A PASO**: No cargar múltiples pasos a la vez. Ir de uno en uno, validando cada paso.
 6. **ARCHIVOS SOLO CON CONTENIDO SÓLIDO**: No crear archivos vacíos o con contenido preliminar. Esperar a tener contenido maduro.
-7. **REVISAR .cm ANTES DE CADA RESPUESTA**: Este archivo es de consulta obligatoria antes de generar cualquier respuesta. Leerlo completo cada vez.
+7. **REVISAR .cm ANTES DE CADA RESPUESTA**: Este archivo es de consulta obligatoria antes de generar cualquier respuesta. Priorizar lectura de **Preferencias** y **Última Interacción** sobre el resto del documento para no saturar. Si hay dudas, leer completo.
 8. **EL USUARIO MANDA**: Si el usuario corrige algo, incorporarlo como preferencia y no repetir el error.
 9. **CIBERSEGURIDAD + HACKING ÉTICO + OTRAS APPS**: El tutor debe servir para Burp Suite y apps similares, pero también para edición de video, diseño, etc.
 10. **DOCUMENTACIÓN BILINGÜE**: Código en inglés, documentación/docs en español principalmente, con versión en inglés si procede.
 11. **CADENA DE FALLBACK**: Groq (principal) → OpenRouter (fallback) → Modo texto (último recurso).
 12. **MÍNIMA FRICCIÓN**: El usuario debe poder abrir el navegador, hacer clic y empezar. Sin instalaciones complejas.
 13. **NO DETENERSE HASTA COMPLETAR**: No parar hasta haber acabado la tarea solicitada y verificado el resultado. Si hay un fallo o no se puede completar, reportarlo explícitamente. No quedarse bloqueado ni esperar.
+14. **RECONOCER ACIERTOS Y PATRONES**: Cuando el usuario aprueba explícitamente algo (un prompt, un archivo, un enfoque), registrar por qué funcionó y replicar ese criterio. El prompt paso a paso con pasos numerados, verificación intermedia y reglas claras fue aprobado como "hecho con cabeza". Mantener ese nivel de estructura y claridad.
 
 === PLAN DE FASES ===
-FASE 0: Foundation — Estructura del proyecto, configuración, scripts de despliegue, Docker.
-FASE 1: Core Agent — FastAPI server, Orchestrator, conexión con Groq API, tool calling.
-FASE 2: Voice Pipeline — Integración Groq Whisper (STT) + edge-tts (TTS), WebSocket streaming.
-FASE 3: Screen & Vision — Screen capture desde navegador, análisis de pantalla con LLM visión.
-FASE 4: Tools — Web search, YouTube transcripts, screen analysis, OCR, memoria.
-FASE 5: Knowledge Base — ChromaDB, embeddings, persistencia de conocimiento.
-FASE 6: Frontend — Interfaz web completa (captura pantalla, mic, chat, estado).
-FASE 7: Docker & Deploy — Dockerfile, docker-compose, deploy a Koyeb/Render, GitHub Actions.
-FASE 8: Documentation & Release — README, tutoria.cm finalizado, MEMORIA.md, licencia, GitHub release.
+FASE 0: Foundation — ✅ Completa (estructura, Dockerfile, render.yaml, frontend)
+FASE 1: Core Agent — ✅ Parcial (Groq API, /chat endpoint, system prompt YAML)
+FASE 2: Voice Pipeline — ⬜ Pendiente (STT + TTS + WebSocket)
+FASE 3: Screen & Vision — ⬜ Pendiente (screen capture, análisis visual)
+FASE 4: Tools — ⬜ Pendiente (web search, YouTube, web scrape)
+FASE 5: Knowledge Base — ⬜ Pendiente (ChromaDB, persistencia)
+FASE 6: Frontend — ✅ Parcial (HTML/CSS/JS con paleta ELJOSE, chat funcional)
+FASE 7: Docker & Deploy — ✅ Completo (Dockerfile, render.yaml, deploy en Render)
+FASE 8: Documentation & Release — ⬜ Pendiente
 
-=== DEPENDENCIAS CLAVE ===
+=== DEPENDENCIAS CLAVE (usadas actualmente) ===
 - Python 3.12+
-- fastapi, uvicorn, websockets
+- fastapi, uvicorn, pydantic
 - groq (SDK oficial)
-- httpx (para OpenRouter y scraping)
-- duckduckgo_search
-- edge-tts
-- chromadb
-- sentence-transformers
-- numpy, pillow (procesamiento imágenes)
-- docker, docker-compose (despliegue)
+- pyyaml, python-dotenv
+- docker (solo para build en Render)
+
+=== DEPENDENCIAS FUTURAS ===
+- websockets (Fase 2)
+- httpx, duckduckgo_search, edge-tts (Fase 2-4)
+- chromadb, sentence-transformers (Fase 5)
 
 === NOTAS TÉCNICAS (actualizadas) ===
 - Render free tier: 512MB RAM, 0.1 CPU, sleep a los 15 min, 750h/mes, cold start 30-60s
@@ -88,24 +87,37 @@ FASE 8: Documentation & Release — README, tutoria.cm finalizado, MEMORIA.md, l
 
 === ESTRUCTURA DEL PROYECTO ===
 D:\TutorIA\
-├── agent/           # Lógica del agente orquestador
+├── agent/           # Config YAML, cliente Groq, prompts
+│   ├── agent_config.yaml
+│   ├── llm_client.py
+│   └── prompts.py
 ├── server/          # FastAPI server + endpoints
-├── tools/           # Herramientas (web search, screen analysis, etc.)
-├── voice/           # STT + TTS (principalmente APIs externas)
-├── memory/          # ChromaDB y persistencia
-├── frontend/        # HTML/CSS/JS para el cliente web
+│   └── main.py
+├── frontend/        # HTML/CSS/JS interfaz web
+│   ├── index.html
+│   ├── style.css
+│   └── app.js
 ├── config/          # Configuración YAML
-├── docker/          # Dockerfile y docker-compose
+│   ├── default.yaml
+│   └── settings.py
 ├── docs/            # Documentación
-├── scripts/         # Scripts de utilidad
+│   └── MEMORIA.md
 ├── tutoria.cm       # Este archivo (contexto)
-├── README.md
+├── Dockerfile
+├── render.yaml
 ├── requirements.txt
 └── .gitignore
 
 === ÚLTIMA INTERACCIÓN (recordatorio) ===
-- Se ha descartado completamente el enfoque local (Ollama, modelos cuantizados, etc.)
-- El proyecto usará Groq (principal) + OpenRouter (fallback) como proveedores LLM cloud
-- El servidor del agente irá en Koyeb o Render (se decidirá en Fase 7)
-- El frontend será web (navegador) con captura de pantalla y mic mediante APIs nativas
-- Se investigaron y verificaron los límites gratuitos de Render, Groq y OpenRouter
+- Enfoque: TODO cloud (Groq API + OpenRouter), NADA local. NO OLLAMA, NO QUANT.
+- Repositorio: https://github.com/josecortessanchez28-png/TutorIA (vivo, git push vía token)
+- Despliegue: Render Web Service (tutoria-v1n7.onrender.com), auto-deploy desde GitHub
+- API keys: Groq key configurada en Render env vars. OpenRouter pendiente.
+- Groq API key: configurada en Render env vars (no visible en repositorio)
+- Modelo actual: llama-3.3-70b-versatile (vía Groq), temperatura 0.5, max_tokens 1024
+- Estado funcional v1.2: frontend visual (paleta ELJOSE) + /health + POST /chat funcional
+- System prompt: agent/agent_config.yaml externo (persona, reglas, formato)
+- Reglas activas: respuestas concisas (2-3 frases), sin markdown, texto plano legible en TTS
+- Frontend: index.html + style.css + app.js (chat fluido, typing indicator)
+- No se usa: torre local, git local, WSL, Docker Desktop. Solo GitHub API + Render.
+- Pendiente fase actual: documentar (cm + md) y planificar siguiente fase (Voice Pipeline)
