@@ -16,7 +16,7 @@ def chat(message, context=None, history=None):
     response = client.chat.completions.create(
         model=MODEL,
         messages=messages,
-        temperature=0.7,
-        max_tokens=2048,
+        temperature=0.5,
+        max_tokens=512,
     )
     return response.choices[0].message.content
