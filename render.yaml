@@ -1,0 +1,10 @@
+﻿services:
+  - type: web
+    name: tutoria
+    env: docker
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: GROQ_API_KEY
+        sync: false
+      - key: OPENROUTER_API_KEY
+        sync: false

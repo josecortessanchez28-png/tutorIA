@@ -1,0 +1,19 @@
+server:
+  host: "0.0.0.0"
+  port: 8000
+
+llm:
+  primary_provider: "groq"
+  fallback_provider: "openrouter"
+  model: "llama-3.3-70b-versatile"
+  fallback_model: "openrouter/free"
+
+voice:
+  stt_provider: "groq"
+  stt_model: "whisper-large-v3-turbo"
+  tts_provider: "edge-tts"
+  tts_voice: "es-ES-ElviraNeural"
+
+tools:
+  search_provider: "duckduckgo"
+  max_results: 5

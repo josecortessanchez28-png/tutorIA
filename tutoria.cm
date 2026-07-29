@@ -1,0 +1,111 @@
+╔══════════════════════════════════════════════════╗
+║              TUTORIA — CONTEXTO DEL PROYECTO     ║
+║  Tutor IA para aplicaciones con curva de aprendizaje alta  ║
+╚══════════════════════════════════════════════════╝
+
+=== INFORMACIÓN GENERAL ===
+Nombre: TutorIA
+Repositorio: https://github.com/josedell/TutorIA (pendiente de crear)
+Propósito: Agente tutor que guía al usuario paso a paso en el uso de aplicaciones complejas mediante voz y pantalla compartida, usando IA en la nube.
+
+=== ARQUITECTURA ===
+[CLIENTE - Navegador web]
+  ├── Micrófono → getUserMedia → Audio
+  ├── Pantalla → Screen Capture API → Frames
+  └── Altavoces ← Audio TTS ← edge-tts
+           │
+           ▼ WebSocket/HTTP
+[SERVIDOR - Cloud (Koyeb o Render)]
+  ├── FastAPI + Python 3.12+
+  ├── Agent Orchestrator (bucle principal)
+  │     ├── Groq API → LLM principal + tool calling
+  │     ├── OpenRouter API → Fallback
+  │     ├── edge-tts → Voz sintetizada
+  │     ├── DuckDuckGo Search → Web
+  │     ├── Screen Analysis → OCR + descripción
+  │     └── ChromaDB → Memoria persistente
+  └── WebSockets → Streaming respuestas
+
+=== STACK TECNOLÓGICO ===
+Lenguaje: Python 3.12+
+Framework web: FastAPI + Uvicorn
+LLM Principal: Groq API (llama-3.3-70b-versatile, llama-3.1-8b-instant)
+LLM Fallback: OpenRouter auto-router (openrouter/free)
+STT: Groq Whisper large-v3-turbo (API, 2000 req/día gratis)
+TTS: edge-tts (API Microsoft, gratis, voces naturales)
+Web Search: duckduckgo_search (sin API key, sin límites)
+Screen Capture: JavaScript Screen Capture API (navegador -> servidor)
+OCR: PaddleOCR o LLM con visión (Groq/OpenRouter)
+Vector DB: ChromaDB (gratis, local en servidor)
+Hosting Cloud: Koyeb (1GB RAM, 0.5 CPU, sin sleep) o Render (512MB, 0.1 CPU, 750h/mes)
+Despliegue: Docker + GitHub Actions
+
+=== PREFERENCIAS Y REGLAS DE TRABAJO (MEMORIZADAS) ===
+1. **NADA LOCAL**: Todo cloud, siempre. No sugerir jamás ejecución local de modelos. Repetido: NO LOCAL.
+2. **TODO GRATIS**: Cero coste económico. Si una opción cuesta dinero, descartarla automáticamente.
+3. **NO REPETIR OPCIONES RECHAZADAS**: Si el usuario dice que no a algo, no volver a mencionarlo.
+4. **INVESTIGAR ANTES DE AFIRMAR**: No asumir datos técnicos sin verificarlos. Buscar información actualizada.
+5. **PASO A PASO**: No cargar múltiples pasos a la vez. Ir de uno en uno, validando cada paso.
+6. **ARCHIVOS SOLO CON CONTENIDO SÓLIDO**: No crear archivos vacíos o con contenido preliminar. Esperar a tener contenido maduro.
+7. **REVISAR .cm ANTES DE CADA RESPUESTA**: Este archivo es de consulta obligatoria antes de generar cualquier respuesta. Leerlo completo cada vez.
+8. **EL USUARIO MANDA**: Si el usuario corrige algo, incorporarlo como preferencia y no repetir el error.
+9. **CIBERSEGURIDAD + HACKING ÉTICO + OTRAS APPS**: El tutor debe servir para Burp Suite y apps similares, pero también para edición de video, diseño, etc.
+10. **DOCUMENTACIÓN BILINGÜE**: Código en inglés, documentación/docs en español principalmente, con versión en inglés si procede.
+11. **CADENA DE FALLBACK**: Groq (principal) → OpenRouter (fallback) → Modo texto (último recurso).
+12. **MÍNIMA FRICCIÓN**: El usuario debe poder abrir el navegador, hacer clic y empezar. Sin instalaciones complejas.
+13. **NO DETENERSE HASTA COMPLETAR**: No parar hasta haber acabado la tarea solicitada y verificado el resultado. Si hay un fallo o no se puede completar, reportarlo explícitamente. No quedarse bloqueado ni esperar.
+
+=== PLAN DE FASES ===
+FASE 0: Foundation — Estructura del proyecto, configuración, scripts de despliegue, Docker.
+FASE 1: Core Agent — FastAPI server, Orchestrator, conexión con Groq API, tool calling.
+FASE 2: Voice Pipeline — Integración Groq Whisper (STT) + edge-tts (TTS), WebSocket streaming.
+FASE 3: Screen & Vision — Screen capture desde navegador, análisis de pantalla con LLM visión.
+FASE 4: Tools — Web search, YouTube transcripts, screen analysis, OCR, memoria.
+FASE 5: Knowledge Base — ChromaDB, embeddings, persistencia de conocimiento.
+FASE 6: Frontend — Interfaz web completa (captura pantalla, mic, chat, estado).
+FASE 7: Docker & Deploy — Dockerfile, docker-compose, deploy a Koyeb/Render, GitHub Actions.
+FASE 8: Documentation & Release — README, tutoria.cm finalizado, MEMORIA.md, licencia, GitHub release.
+
+=== DEPENDENCIAS CLAVE ===
+- Python 3.12+
+- fastapi, uvicorn, websockets
+- groq (SDK oficial)
+- httpx (para OpenRouter y scraping)
+- duckduckgo_search
+- edge-tts
+- chromadb
+- sentence-transformers
+- numpy, pillow (procesamiento imágenes)
+- docker, docker-compose (despliegue)
+
+=== NOTAS TÉCNICAS (actualizadas) ===
+- Render free tier: 512MB RAM, 0.1 CPU, sleep a los 15 min, 750h/mes, cold start 30-60s
+- Koyeb free tier: 1GB RAM, 0.5 CPU, NO sleep (siempre activo)
+- Groq free: 30 RPM, 6K TPM, 1K RPD (modelos estándar), Whisper 20 RPM, 2K audio req/día
+- OpenRouter free: 20 RPM, 50 RPD (sin compra), 1K RPD (con 10$ comprados alguna vez)
+- edge-tts: gratuito, llama a API de Microsoft Edge, voces naturales, múltiples idiomas
+- Groq tiene tool calling nativo y es compatible con OpenAI API format
+
+=== ESTRUCTURA DEL PROYECTO ===
+D:\TutorIA\
+├── agent/           # Lógica del agente orquestador
+├── server/          # FastAPI server + endpoints
+├── tools/           # Herramientas (web search, screen analysis, etc.)
+├── voice/           # STT + TTS (principalmente APIs externas)
+├── memory/          # ChromaDB y persistencia
+├── frontend/        # HTML/CSS/JS para el cliente web
+├── config/          # Configuración YAML
+├── docker/          # Dockerfile y docker-compose
+├── docs/            # Documentación
+├── scripts/         # Scripts de utilidad
+├── tutoria.cm       # Este archivo (contexto)
+├── README.md
+├── requirements.txt
+└── .gitignore
+
+=== ÚLTIMA INTERACCIÓN (recordatorio) ===
+- Se ha descartado completamente el enfoque local (Ollama, modelos cuantizados, etc.)
+- El proyecto usará Groq (principal) + OpenRouter (fallback) como proveedores LLM cloud
+- El servidor del agente irá en Koyeb o Render (se decidirá en Fase 7)
+- El frontend será web (navegador) con captura de pantalla y mic mediante APIs nativas
+- Se investigaron y verificaron los límites gratuitos de Render, Groq y OpenRouter
