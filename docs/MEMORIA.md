@@ -1,6 +1,6 @@
 ﻿# MEMORIA DEL PROYECTO: TutorIA
 
-> **Versión:** 1.2.0 — Frontend + Config YAML  
+> **Versión:** 2.0.0 — Reset post-audio  
 > **Fecha:** 29 Julio 2026  
 > **Autor:** Jose (josecortessanchez28-png)  
 > **Repositorio:** https://github.com/josecortessanchez28-png/TutorIA
@@ -28,9 +28,11 @@
 | Blender | Diseño 3D | Modelado básico, texturizado, renderizado |
 | Metasploit | Ciberseguridad | Explotación, post-explotación, pivoting |
 
+---
+
 ## 2. DECISIÓN DE ARQUITECTURA
 
-Se descartó completamente el enfoque local (Ollama + modelos cuantizados) por tres razones:
+Se descartó completamente el enfoque local (Ollama + modelos cuantizados) por:
 
 1. **Modelos locales inferiores**: Qwen 3B no puede competir con Llama 3.3 70B o GPT-OSS 120B en razonamiento y tool calling.
 2. **Mantenimiento**: Actualizar modelos, gestionar descargas, dependencias del sistema, espacio en disco.
@@ -42,7 +44,9 @@ La arquitectura elegida es **cloud-first**:
 - **STT**: Groq Whisper large-v3-turbo vía API — 2000 requests/día gratis, 20 RPM.
 - **TTS**: edge-tts — llama a la API de Microsoft Edge, voces naturales, sin coste.
 - **Screen Capture**: JavaScript Screen Capture API desde el navegador del usuario.
-- **Servidor**: Python + FastAPI desplegado en Koyeb (1GB RAM, 0.5 CPU, sin sleep) o Render (512MB, 0.1 CPU).
+- **Servidor**: Python + FastAPI desplegado en Render (512MB, 0.1 CPU) o Koyeb (1GB, 0.5 CPU).
+
+---
 
 ## 3. STACK TECNOLÓGICO DETALLADO
 
@@ -54,346 +58,183 @@ La arquitectura elegida es **cloud-first**:
 | Framework web | FastAPI | Última | Rendimiento, WebSockets nativos, tipado |
 | Servidor ASGI | Uvicorn | Última | Estándar para FastAPI, bajo overhead |
 | Cliente LLM | groq (SDK oficial) | Última | OpenAI-compatible, tool calling nativo |
-| Cliente HTTP | httpx | Última | Para OpenRouter y web scraping async |
-| Web Search | duckduckgo_search | Última | Sin API key, sin límites de rate |
-| TTS | edge-tts | Última | API Microsoft, voces naturales, gratis |
-| Vector DB | chromadb | Última | Embeddings locales, persistente, gratis |
-| Embeddings | sentence-transformers | Última | Modelos ligeros (all-MiniLM-L6-v2) |
-| Procesamiento img | Pillow + numpy | Última | Análisis básico de capturas |
+| Config | YAML + dotenv | - | Config editable sin tocar código |
 
 ### 3.2 Frontend (Navegador)
 
 | Componente | Tecnología |
 |---|---|
-| HTML/CSS/JS | Vanilla (sin framework) o SPA ligera |
-| Screen Capture | Screen Capture API (getDisplayMedia) |
-| Micrófono | getUserMedia (WebRTC) |
-| WebSocket | nativo JS (WebSocket API) |
-| Streaming audio | Web Audio API + MediaSource |
+| HTML/CSS/JS | Vanilla (sin framework) |
+| WebSocket | Nativo JS (WebSocket API) |
+| Cache busting | `app.v{N}.js` (nombre único por versión) |
 
 ### 3.3 APIs Externas
 
 | API | Uso | Modelos disponibles | Límites free tier |
 |---|---|---|---|
-| Groq | LLM principal + STT | Llama 3.3 70B, Llama 3.1 8B, Qwen, GPT-OSS, Whisper | 30 RPM, 6K TPM, 1K RPD |
-| OpenRouter | LLM fallback | Nemotron 3 Ultra (1M ctx), Llama 70B, Qwen, GPT-OSS | 20 RPM, 50 RPD (sin pago) |
-| Microsoft Edge | TTS (edge-tts) | ~322 voces naturales | Sin límite conocido |
+| Groq | LLM principal + STT | Llama 3.3 70B, Whisper | 30 RPM, 6K TPM, 1K RPD |
+| OpenRouter | LLM fallback | Múltiples modelos gratuitos | 20 RPM, 50 RPD |
 
-## 4. INVESTIGACIÓN DE MERCADO (Julio 2026)
+---
 
-### 4.1 Render Free Tier
-- RAM: 512 MB | CPU: 0.1 | Ancho banda: 100 GB/mes
-- Sleep: 15 min inactividad, cold start 30-60s
-- Horas: 750h/mes (suficiente para 1 app 24/7)
-- PostgreSQL gratis: 256MB RAM, 1GB (expira 30 días)
-
-### 4.2 Koyeb Free Tier
-- RAM: 1 GB | CPU: 0.5 | Sin sleep (siempre activo)
-- Mejor que Render para este proyecto (2x RAM, 5x CPU, no duerme)
-
-### 4.3 Groq API
-- Modelos gratuitos: Llama 3.3 70B, Llama 3.1 8B, GPT-OSS 20B/120B, Qwen 32B, Whisper
-- Rate limits: 30 RPM, ~6K TPM, 1K RPD
-- Whisper: 20 RPM, 2K audio requests/día
-- Tool calling: Nativo, compatible con OpenAI format
-- Velocidad: 280-1000 tokens/segundo (LPU hardware)
-
-### 4.4 OpenRouter
-- 25+ modelos gratuitos rotativos
-- Rate limits: 20 RPM, 50 RPD (sin compra), 1K RPD (con 10$ comprados)
-- Auto-router `openrouter/free`: elige el mejor modelo disponible
-- Tool calling: Soporta function calling
-
-## 5. ARQUITECTURA DEL SISTEMA
+## 4. ARQUITECTURA DEL SISTEMA (actual)
 
 ```
-┌─────────────────────────────────────────────────┐
-│              NAVEGADOR WEB (cliente)              │
-│                                                   │
-│  [Mic] → getUserMedia → Audio → WebSocket         │
-│  [Screen] → getDisplayMedia → Frames → WebSocket │
-│  [Speaker] ← Audio TTS ← WebSocket ←             │
-│                                                   │
-└─────────────────────┬───────────────────────────┘
-                      │ WebSocket + HTTP
-                      ▼
-┌─────────────────────────────────────────────────┐
-│              SERVIDOR (Koyeb/Render)              │
-│                                                   │
-│  ┌──────────┐  ┌──────────┐  ┌────────────────┐ │
-│  │ FastAPI  │  │ WebSocket│  │  Agent Orch.   │ │
-│  │ REST     │  │ Manager  │  │  (bucle ppal)  │ │
-│  └──────────┘  └──────────┘  └───────┬────────┘ │
-│                                       │          │
-│  ┌────────────────────────────────────┘          │
-│  │                                                │
-│  ▼                                                │
-│  ┌────────────────────────────────────────────┐  │
-│  │            LLM ROUTER                        │  │
-│  │  ┌──────────────┐  ┌──────────────────┐    │  │
-│  │  │ Groq API     │  │ OpenRouter API   │    │  │
-│  │  │ (Principal)  │  │ (Fallback)       │    │  │
-│  │  └──────────────┘  └──────────────────┘    │  │
-│  └────────────────────────────────────────────┘  │
-│                                                   │
-│  ┌──────────┐  ┌──────────┐  ┌────────────────┐ │
-│  │ STT      │  │ TTS      │  │ Tools          │ │
-│  │ (Whisper)│  │(edge-tts)│  │ Search, OCR,   │ │
-│  └──────────┘  └──────────┘  │ YouTube, etc.  │ │
-│                               └────────────────┘ │
-│  ┌──────────┐  ┌──────────────────────────────┐  │
-│  │ ChromaDB │  │ Session / Context Manager    │  │
-│  │  (mem)   │  │ (historial + ventana tokens) │  │
-│  └──────────┘  └──────────────────────────────┘  │
-└─────────────────────────────────────────────────┘
+[CLIENTE - Navegador]
+  └── Chat texto → WebSocket → [SERVIDOR - Render]
+                                   ├── FastAPI /ws (streaming)
+                                   ├── POST /chat (fallback)
+                                   └── Groq API (LLM)
 ```
 
-## 6. FLUJO DE USO
+El flujo es:
+1. Usuario escribe en el chat
+2. Mensaje se envía por WebSocket (o POST si WS no conecta)
+3. Servidor recibe, construye prompt con system config (YAML) + historial
+4. Groq genera respuesta en streaming
+5. Chunks llegan al cliente y se renderizan letra por letra
+6. Al terminar, servidor envía `{"done": true}` y guarda en historial
 
-### Paso a paso:
+---
 
-1. Usuario abre `tutoria.app` en su navegador
-2. Hace clic en "Iniciar sesión" → concede permisos de micrófono y pantalla
-3. El agente saluda y confirma que ve la pantalla y escucha
-4. Usuario dice: *"Vale, tengo abierto Burp Suite, quiero interceptar una petición HTTPS"*
-5. El audio viaja por WebSocket al servidor → Groq Whisper lo transcribe a texto
-6. El servidor captura un frame de la pantalla → lo envía al LLM para análisis visual
-7. El agente (orquestador) construye el prompt con: contexto visual + consulta del usuario + historial
-8. LLM (Groq) procesa y decide si necesita herramientas:
-   - ¿Buscar en web? → Ejecuta duckduckgo_search
-   - ¿Ver documentación? → Scrapea docs oficiales
-   - ¿Buscar tutorial? → YouTube transcript
-9. LLM genera respuesta → edge-tts la convierte en audio
-10. Audio llega al navegador por WebSocket → se reproduce en cascos
-11. El agente espera nueva intervención del usuario (o pregunta si el paso se ha completado)
+## 5. HISTORIAL DE VERSIONES
 
-### Cadena de fallback:
+### v2.0.0 — Reset post-audio + documentación de fallo (29 Jul 2026)
+**Cambios:**
+- Reset completo a estado texto puro
+- Eliminado todo el código de audio (frontend, servidor, cliente LLM)
+- Eliminado botón de micrófono del HTML y CSS
+- Eliminado `app.v4.js` del repositorio
+- Adoptada estrategia de cache busting: `app.v{N}.js` (nombre único por versión)
+- Documentado el fallo del audio en .cm y MEMORIA.md
+- Añadidas reglas 16, 17, 18 al .cm (cache busting, una feature a la vez, documento de diseño)
 
-```
-Groq LLM → ¿límite? → OpenRouter free → ¿límite? → "Modo texto, disculpa las molestias"
-Groq Whisper → ¿límite? → "No puedo escuchar, escribe tu consulta"
-edge-tts → ¿fallo? → pyttsx3 offline (local, última opción)
-```
+**Lecciones aprendidas del fallo de audio:**
+1. **Una feature a la vez**: audio se implementó sobre streaming WS que tenía minutos de vida.
+2. **Cache JS**: el navegador servía código viejo, haciendo que los fixes parecieran no funcionar.
+3. **Race condition**: `getUserMedia` asíncrono + interacción del usuario crearon un bucle de errores.
+4. **Múltiples enfoques**: push-to-talk → toggle → versiones híbridas sin validar entre cambios.
+5. **Solución adoptada**: reset completo. El audio se re-implementará desde cero con enfoque push-to-talk probado.
 
-## 7. ESTRUCTURA DEL PROYECTO
+### v1.3.0 — WebSocket streaming + memoria conversación (29 Jul 2026)
+- Endpoint WebSocket /ws con streaming chunk-by-chunk
+- `AsyncGroq` reemplazado por `Groq` síncrono + `ThreadPoolExecutor` + `asyncio.Queue`
+- Memoria de conversación por sesión WS (history)
+- Frontend conecta WS, renderiza chunks en tiempo real
+- Eliminado timeout de 2s (fallback a POST) que causaba race conditions
+
+### v1.2.0 — Config YAML + Concision (29 Jul 2026)
+- Nuevo sistema de configuración externa: `agent/agent_config.yaml`
+- System prompt se construye dinámicamente desde el YAML
+- Respuestas optimizadas para conversación fluida
+
+### v1.1.0 — Frontend visual + paleta ELJOSE (29 Jul 2026)
+- Frontend web completo: index.html + style.css + app.js
+- Paleta oscura neón con gradiente morado-rosa
+- Chat visual con burbujas, typing indicator, scroll automático
+
+### v1.0.0 — Primer deploy (29 Jul 2026)
+- FastAPI server con /health y POST /chat
+- Cliente Groq API real con llama-3.3-70b-versatile
+- Dockerfile + render.yaml para deploy en Render
+- Despliegue en https://tutoria-v1n7.onrender.com
+
+---
+
+## 6. ESTRUCTURA DEL PROYECTO
 
 ```
 D:\TutorIA\
-├── agent/                  # Lógica del agente orquestador
-│   ├── __init__.py
-│   ├── orchestrator.py     # Bucle principal del agente
-│   ├── session.py          # Gestión de contexto y sesiones
-│   ├── tool_registry.py    # Registro y ejecución de herramientas
-│   └── prompts.py          # System prompts y templates
-├── server/                 # FastAPI server
-│   ├── __init__.py
-│   ├── main.py             # Punto de entrada FastAPI
-│   ├── routes.py           # Endpoints REST
-│   └── websocket.py        # Gestión WebSocket
-├── tools/                  # Herramientas del agente
-│   ├── __init__.py
-│   ├── base.py             # Interfaz BaseTool
-│   ├── web_search.py       # Búsqueda DuckDuckGo
-│   ├── web_scrape.py       # Extracción de contenido
-│   ├── youtube.py          # Transcripts YouTube
-│   └── screen_analysis.py  # Análisis de capturas
-├── voice/                  # Pipeline de voz
-│   ├── __init__.py
-│   ├── stt.py              # Cliente Groq Whisper
-│   └── tts.py              # Cliente edge-tts
-├── memory/                 # Base de conocimiento
-│   ├── __init__.py
-│   ├── vector_store.py     # ChromaDB wrapper
-│   └── embeddings.py       # Embeddings
+├── agent/                  # Config YAML, cliente Groq, prompts
+│   ├── agent_config.yaml
+│   ├── llm_client.py
+│   └── prompts.py
+├── server/                 # FastAPI server + endpoints
+│   └── main.py
 ├── frontend/               # Cliente web
 │   ├── index.html
 │   ├── style.css
-│   └── app.js              # Screen capture, mic, WebSocket
-├── config/                 # Configuración
-│   ├── __init__.py
-│   ├── settings.py
-│   └── default.yaml
-├── docker/                 # Despliegue
-│   ├── Dockerfile
-│   └── docker-compose.yml
+│   └── app.js
+├── config/                 # Configuración YAML
+│   ├── default.yaml
+│   └── settings.py
 ├── docs/                   # Documentación
-│   ├── MEMORIA.md           # Este archivo
-│   └── ARQUITECTURA.md
-├── scripts/                # Scripts de utilidad
-│   ├── install.sh
-│   ├── run.sh
-│   └── run.bat
+│   └── MEMORIA.md
 ├── tutoria.cm              # Contexto del proyecto
-├── README.md
+├── Dockerfile
+├── render.yaml
 ├── requirements.txt
-├── setup.py
-├── LICENSE
 └── .gitignore
 ```
 
-## 8. PLAN DE FASES DETALLADO
+---
 
-### FASE 0: Foundation (1-2 días)
-- Crear estructura de directorios
-- Configuración YAML con variables de entorno (API keys, modelos)
-- requirements.txt con dependencias pinneadas
-- scripts de instalación y arranque
-- .gitignore, LICENSE
-- Dockerfile + docker-compose.yml base
+## 7. DECISIONES TÉCNICAS
 
-### FASE 1: Core Agent (3-4 días)
-- FastAPI server con rutas básicas
-- Cliente Groq API con tool calling
-- Cliente OpenRouter como fallback
-- System prompts para el rol de tutor
-- Gestión de sesiones y contexto
+### 7.1 Estrategia de Cache Busting (NUEVA)
+**Problema detectado en v2.0:** El navegador cacheaba `app.js` incluso con `Cache-Control: no-cache`. Los cambios en el JS no se reflejaban en el cliente.
+**Solución:** Cada versión de JS usa un nombre único: `app.v{N}.js`. El HTML siempre apunta al nuevo nombre. El navegador NO PUEDE tener el archivo en caché porque nunca ha visto ese nombre antes.
 
-### FASE 2: Voice Pipeline (2-3 días)
-- Integración Groq Whisper (STT) vía API
-- Integración edge-tts (TTS) vía API
-- WebSocket para streaming de audio
-- Cola de mensajes y buffer de audio
+### 7.2 ¿Por qué push-to-talk y no toggle? (NUEVA)
+**Problema:** El toggle (clic para grabar, clic para parar) introdujo una race condition irresoluble: `getUserMedia` es asíncrono, y el segundo clic podía ocurrir antes de que `getUserMedia` resolviera.
+**Solución:** Push-to-talk (mantener presionado, soltar para enviar). El tiempo de pulsación proporciona un buffer natural para que `getUserMedia` resuelva.
 
-### FASE 3: Screen & Vision (2-3 días)
-- Frontend con Screen Capture API
-- Envío de frames por WebSocket al servidor
-- Análisis de pantalla con LLM (Groq vision)
-- Detección de cambios relevantes en pantalla
+### 7.3 Streaming asíncrono con Groq
+Se intentó `AsyncGroq` pero falló en Render por problemas de compatibilidad con el event loop.
+Solución actual: `Groq` síncrono + `ThreadPoolExecutor` + `asyncio.Queue`. Funciona correctamente en producción.
 
-### FASE 4: Tools & Skills (3-4 días)
-- Web search con duckduckgo_search
-- Web scraping con httpx + trafilatura
-- YouTube transcripts
-- Sistema de herramientas tipo MCP
-- Rate limiting y timeouts
-
-### FASE 5: Knowledge Base (2-3 días)
-- ChromaDB para persistencia
-- Embeddings con sentence-transformers
-- Caché de búsquedas web
-- Memoria de sesiones anteriores
-
-### FASE 6: Frontend Completo (2-3 días)
-- Interfaz web con chat visual
-- Botón de inicio de sesión (screen + mic)
-- Indicadores de estado (escuchando, procesando, hablando)
-- Modo oscuro/claro
-
-### FASE 7: Docker & Deploy (1-2 días)
-- Dockerfile optimizado (multi-stage)
-- Docker Compose con servicios
-- Deploy a Koyeb o Render
-- GitHub Actions para CI/CD
-
-### FASE 8: Documentation & Release (1-2 días)
-- README completo (ES + EN)
-- tutoria.cm finalizado
-- MEMORIA.md completa
-- Ejemplos de uso
-- GitHub release v1.0.0
-
-## 9. DECISIONES TÉCNICAS
-
-### 9.1 ¿Por qué no Ollama local?
-- Modelos locales (Qwen 3B) son inferiores a Llama 70B o GPT-OSS 120B vía API
-- Mantenimiento continuo de descargas y actualizaciones
-- Dependencia de hardware específico
-- El usuario no puede acceder desde cualquier máquina
-
-### 9.2 ¿Por qué Groq como principal?
-- Tool calling nativo (función crítica para el orquestador)
-- Velocidad LPU (hasta 1000 tokens/s)
-- Whisper incluido (un solo API key para LLM + STT)
-- OpenAI-compatible (fácil migración si es necesario)
-- Gratuito, sin tarjeta de crédito
-
-### 9.3 ¿Por qué OpenRouter como fallback?
-- 25+ modelos gratuitos rotativos
-- Auto-router que selecciona el mejor disponible
-- Diferente pool de rate limits (no compite con Groq)
-
-### 9.4 ¿Por qué edge-tts para voz?
-- Gratuito, sin límites de uso conocidos
-- ~322 voces naturales (más que cualquier alternativa gratuita)
-- No necesita GPU ni hardware especial
-- Streaming de audio en tiempo real
-
-### 9.5 ¿Por qué navegador como cliente?
+### 7.4 ¿Por qué navegador como cliente?
 - Sin instalación: funciona en cualquier máquina con navegador
 - APIs nativas para screen capture y mic (getDisplayMedia, getUserMedia)
 - WebSocket para comunicación bidireccional en tiempo real
-- Portabilidad total: torre, portátil, tablet
+- Portabilidad total
 
-## 10. ANEXOS
+---
 
-### 10.1 Variables de Entorno Necesarias
+## 8. PLAN DE FASES (post-reset)
+
+### FASE 0: Foundation — ✅ Completa
+### FASE 1: Core Agent — ✅ Completa (texto + streaming + memoria)
+### FASE 2: Voice Pipeline — ❌ Pendiente de re-implementación
+  - [ ] Implementar push-to-talk con getUserMedia único al cargar página
+  - [ ] Cache busting: app.v5.js para el JS con audio
+  - [ ] Validar funcionamiento durante 7 días antes de siguiente fase
+### FASE 3-8: Pendientes
+
+---
+
+## 9. VARIABLES DE ENTORNO
 
 ```bash
 GROQ_API_KEY=          # Obligatoria
-OPENROUTER_API_KEY=    # Obligatoria
 TUTORIA_MODEL=         # Opcional (default: llama-3.3-70b-versatile)
-TUTORIA_FALLBACK=      # Opcional (default: openrouter/free)
-TUTORIA_TTS_VOICE=     # Opcional (default: es-ES-ElviraNeural)
+TUTORIA_WHISPER=       # Opcional (default: whisper-large-v3-turbo)
 ```
 
-### 10.2 Dependencias Python
+---
+
+## 10. DEPENDENCIAS PYTHON
 
 ```
 fastapi>=0.115
-uvicorn>=0.34
-websockets>=14
-groq>=0.18
-httpx>=0.28
-duckduckgo_search>=7
-edge-tts>=7
-chromadb>=1
-sentence-transformers>=3
-numpy>=2
-pillow>=11
-pyyaml>=6
+uvicorn[standard]>=0.34
 pydantic>=2
+pyyaml>=6
+python-dotenv>=1
+groq>=0.18
+websockets>=14
 ```
 
-### 10.3 Glosario
+---
+
+## 11. GLOSARIO
 
 | Término | Definición |
 |---|---|
 | LLM | Large Language Model — Modelo de lenguaje grande |
 | STT | Speech-to-Text — Conversión de voz a texto |
 | TTS | Text-to-Speech — Conversión de texto a voz |
-| Tool Calling | Capacidad del LLM de invocar funciones externas |
-| MCP | Model Context Protocol — Protocolo para conectar LLM con herramientas |
 | VAD | Voice Activity Detection — Detección de actividad vocal |
-| Orb | Orquestador — Bucle principal del agente |
 | RPM | Requests Per Minute — Peticiones por minuto |
 | RPD | Requests Per Day — Peticiones por día |
 | TPM | Tokens Per Minute — Tokens por minuto |
-| LPU | Language Processing Unit — Hardware de inferencia de Groq |
-
-## 11. HISTORIAL DE VERSIONES
-
-### v1.2.0 — Config YAML + Concision (29 Jul 2026)
-- Nuevo sistema de configuración externa: `agent/agent_config.yaml`
-  - Persona, reglas, formato y límites del LLM en YAML editable sin tocar código
-  - System prompt se construye dinámicamente desde el YAML
-- Respuestas optimizadas para conversación fluida:
-  - max_tokens: 2048 → 1024
-  - Sin markdown, asteriscos, negritas ni símbolos
-  - Máximo 2-3 frases por defecto, expande si el usuario pide más
-  - Temperatura reducida 0.7 → 0.5
-
-### v1.1.0 — Frontend visual + paleta ELJOSE (29 Jul 2026)
-- Frontend web completo: index.html + style.css + app.js
-- Paleta oscura neón: #0F0D1A fondo, #A855F7 morado, #EC4899 rosa
-- Fuentes Google: Black Ops One (títulos), Gochi Hand (subtítulos)
-- Chat visual con burbujas, typing indicator, scroll automático
-- FastAPI sirve frontend como estáticos en GET /
-- Gradiente principal: linear-gradient(135deg, #A855F7, #EC4899)
-
-### v1.0.0 — Primer deploy (29 Jul 2026)
-- FastAPI server con /health y POST /chat
-- Cliente Groq API real con llama-3.3-70b-versatile
-- System prompt inicial (tutor paso a paso, español, voz)
-- Dockerfile + render.yaml para deploy en Render
-- Despliegue en https://tutoria-v1n7.onrender.com
-- Push a GitHub via API (sin git local)

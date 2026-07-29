@@ -3,10 +3,9 @@ from fastapi.staticfiles import StaticFiles
 from fastapi import WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 import uvicorn
-import base64
 import json
 import logging
-from agent.llm_client import chat, chat_stream_async, transcribe_audio
+from agent.llm_client import chat, chat_stream_async
 from agent.prompts import SYSTEM_PROMPT
 
 logging.basicConfig(level=logging.INFO)
@@ -48,21 +47,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 data = json.loads(raw["text"])
                 msg_type = data.get("type", "text")
 
-                if msg_type == "audio_data":
-                    audio_bytes = base64.b64decode(data["data"])
-                    fmt = data.get("format", "audio/webm")
-                    logger.info(f"Audio base64: {len(data['data'])} chars -> {len(audio_bytes)} bytes, mime={fmt}")
-                    if len(audio_bytes) < 1000:
-                        await websocket.send_text(json.dumps({
-                            "type": "transcribed",
-                            "text": "[audio demasiado corto, habla un poco más]"
-                        }))
-                        await websocket.send_text(json.dumps({"done": True}))
-                        continue
-                    transcribed = transcribe_audio(audio_bytes, mime_type=fmt)
-                    await websocket.send_text(json.dumps({"type": "transcribed", "text": transcribed}))
-                    message = transcribed
-                elif msg_type == "text":
+                if msg_type == "text":
                     message = data.get("message", "")
                 else:
                     continue

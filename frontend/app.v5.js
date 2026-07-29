@@ -5,13 +5,9 @@ const chatArea = document.getElementById('chatArea');
 const userInput = document.getElementById('userInput');
 const sendBtn = document.getElementById('sendBtn');
 const typingIndicator = document.getElementById('typingIndicator');
-const micBtn = document.getElementById('micBtn');
-
 let currentBubble = null;
 let ws = null;
 let wsQueue = [];
-let mediaRecorder = null;
-let isRecording = false;
 
 function addMessage(text, isUser) {
   const div = document.createElement('div');
@@ -74,12 +70,6 @@ function connectWebSocket() {
   };
   ws.onmessage = (event) => {
     const data = JSON.parse(event.data);
-    if (data.type === 'transcribed') {
-      addMessage(data.text, true);
-      showTyping();
-      currentBubble = null;
-      return;
-    }
     if (data.chunk) {
       if (!currentBubble) {
         hideTyping();
@@ -120,59 +110,6 @@ function sendMessageStream() {
   }
 }
 
-function startRecording() {
-  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    addMessage('Tu navegador no soporta grabación de audio.', false);
-    return;
-  }
-
-  navigator.mediaDevices.getUserMedia({ audio: true })
-    .then((stream) => {
-      let options = {};
-      if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
-        options = { mimeType: 'audio/webm;codecs=opus' };
-      } else if (MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')) {
-        options = { mimeType: 'audio/ogg;codecs=opus' };
-      }
-      mediaRecorder = new MediaRecorder(stream, options);
-      const mimeType = mediaRecorder.mimeType || 'audio/webm';
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          const reader = new FileReader();
-          reader.onload = () => {
-            const base64 = reader.result.split(',')[1];
-            if (ws && ws.readyState === WebSocket.OPEN) {
-              ws.send(JSON.stringify({ type: 'audio_data', format: mimeType, data: base64 }));
-            }
-          };
-          reader.readAsDataURL(event.data);
-        }
-      };
-      mediaRecorder.onstop = () => {
-        stream.getTracks().forEach(t => t.stop());
-      };
-      mediaRecorder.start();
-      isRecording = true;
-      micBtn.classList.add('recording');
-      userInput.disabled = true;
-      sendBtn.disabled = true;
-    })
-    .catch((err) => {
-      addMessage('Error al acceder al micrófono: ' + err.message, false);
-    });
-}
-
-function stopRecording() {
-  if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-    mediaRecorder.stop();
-  }
-  isRecording = false;
-  micBtn.classList.remove('recording');
-  userInput.disabled = false;
-  sendBtn.disabled = false;
-  userInput.focus();
-}
-
 connectWebSocket();
 
 sendBtn.addEventListener('click', sendMessageStream);
@@ -180,7 +117,3 @@ sendBtn.addEventListener('click', sendMessageStream);
 userInput.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') sendMessageStream();
 });
-
-micBtn.addEventListener('pointerdown', startRecording);
-micBtn.addEventListener('pointerup', stopRecording);
-micBtn.addEventListener('pointerleave', stopRecording);

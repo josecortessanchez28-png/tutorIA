@@ -5,7 +5,7 @@ from groq import Groq
 
 client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 MODEL = os.getenv("TUTORIA_MODEL", "llama-3.3-70b-versatile")
-WHISPER_MODEL = os.getenv("TUTORIA_WHISPER", "whisper-large-v3-turbo")
+
 _executor = ThreadPoolExecutor(max_workers=2)
 
 def _build_messages(message, context=None, history=None):
@@ -41,26 +41,6 @@ def _chat_stream(message, context=None, history=None):
         if delta:
             yield delta
 
-def transcribe_audio(audio_bytes: bytes, mime_type: str = "audio/webm") -> str:
-    import logging
-    logger = logging.getLogger(__name__)
-    ext_map = {
-        "audio/webm": "webm",
-        "audio/webm;codecs=opus": "webm",
-        "audio/ogg": "ogg",
-        "audio/ogg;codecs=opus": "ogg",
-        "audio/wav": "wav",
-        "audio/mp4": "mp4",
-        "audio/mpeg": "mp3",
-    }
-    ext = ext_map.get(mime_type, "webm")
-    logger.info(f"Transcribing {len(audio_bytes)} bytes, mime={mime_type}, ext={ext}")
-    transcription = client.audio.transcriptions.create(
-        file=(f"audio.{ext}", audio_bytes),
-        model=WHISPER_MODEL,
-        language="es",
-    )
-    return transcription.text
 
 async def chat_stream_async(message, context=None, history=None):
     loop = asyncio.get_event_loop()

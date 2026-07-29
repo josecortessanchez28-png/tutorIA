@@ -8,116 +8,96 @@ Nombre: TutorIA
 Repositorio: https://github.com/josecortessanchez28-png/TutorIA
 Propósito: Agente tutor que guía al usuario paso a paso en el uso de aplicaciones complejas mediante voz y pantalla compartida, usando IA en la nube.
 
-=== ARQUITECTURA ===
+=== ARQUITECTURA ACTUAL (post-reset) ===
 [CLIENTE - Navegador web]
-  ├── Micrófono → getUserMedia → Audio
-  ├── Pantalla → Screen Capture API → Frames
-  └── Altavoces ← Audio TTS ← edge-tts
-           │
-           ▼ WebSocket/HTTP
-[SERVIDOR - Cloud (Koyeb o Render)]
+  └── Chat texto (input + botón enviar)
+            │
+            ▼ WebSocket
+[SERVIDOR - Render]
   ├── FastAPI + Python 3.12+
-  ├── Agent Orchestrator (bucle principal)
-  │     ├── Groq API → LLM principal + tool calling
-  │     ├── OpenRouter API → Fallback
-  │     ├── edge-tts → Voz sintetizada
-  │     ├── DuckDuckGo Search → Web
-  │     ├── Screen Analysis → OCR + descripción
-  │     └── ChromaDB → Memoria persistente
-  └── WebSockets → Streaming respuestas
+  ├── GET /health
+  ├── POST /chat (sync, fallback)
+  └── WebSocket /ws (streaming + memoria conversación)
+            │
+            ▼
+        Groq API (llama-3.3-70b-versatile)
 
 === STACK TECNOLÓGICO ===
 Lenguaje: Python 3.12+
 Framework web: FastAPI + Uvicorn + Pydantic
 LLM Principal: Groq API (llama-3.3-70b-versatile) — activo
-LLM Fallback: OpenRouter auto-router (openrouter/free) — pendiente API key
-STT: Groq Whisper large-v3-turbo — pendiente de integrar
-TTS: edge-tts — pendiente de integrar
-Web Search: duckduckgo_search — pendiente de integrar
-Frontend: HTML/CSS/JS vanilla — activo (chat visual)
+Frontend: HTML/CSS/JS vanilla — activo (chat visual, streaming, memoria)
 Hosting: Render Web Service (free tier) — activo
 Despliegue: GitHub push → Render auto-deploy — activo
+System prompt: agent/agent_config.yaml (YAML externo) — activo
+Cache busting JS: app.v{N}.js (nombre único por versión) — activo
 
-=== PREFERENCIAS Y REGLAS DE TRABAJO (MEMORIZADAS) ===
-1. **NADA LOCAL**: Todo cloud, siempre. No sugerir jamás ejecución local de modelos. Repetido: NO LOCAL.
-2. **TODO GRATIS**: Cero coste económico. Si una opción cuesta dinero, descartarla automáticamente.
-3. **NO REPETIR OPCIONES RECHAZADAS**: Si el usuario dice que no a algo, no volver a mencionarlo.
-4. **INVESTIGAR ANTES DE AFIRMAR**: No asumir datos técnicos sin verificarlos. Buscar información actualizada.
-5. **PASO A PASO**: No cargar múltiples pasos a la vez. Ir de uno en uno, validando cada paso.
-6. **ARCHIVOS SOLO CON CONTENIDO SÓLIDO**: No crear archivos vacíos o con contenido preliminar. Esperar a tener contenido maduro.
-7. **REVISAR .cm ANTES DE CADA RESPUESTA**: Este archivo es de consulta obligatoria antes de generar cualquier respuesta. Priorizar lectura de **Preferencias** y **Última Interacción** sobre el resto del documento para no saturar. Si hay dudas, leer completo.
-8. **EL USUARIO MANDA**: Si el usuario corrige algo, incorporarlo como preferencia y no repetir el error.
-9. **CIBERSEGURIDAD + HACKING ÉTICO + OTRAS APPS**: El tutor debe servir para Burp Suite y apps similares, pero también para edición de video, diseño, etc.
-10. **DOCUMENTACIÓN BILINGÜE**: Código en inglés, documentación/docs en español principalmente, con versión en inglés si procede.
-11. **CADENA DE FALLBACK**: Groq (principal) → OpenRouter (fallback) → Modo texto (último recurso).
-12. **MÍNIMA FRICCIÓN**: El usuario debe poder abrir el navegador, hacer clic y empezar. Sin instalaciones complejas.
-13. **NO DETENERSE HASTA COMPLETAR**: No parar hasta haber acabado la tarea solicitada y verificado el resultado. Si hay un fallo o no se puede completar, reportarlo explícitamente. No quedarse bloqueado ni esperar.
-14. **RECONOCER ACIERTOS Y PATRONES**: Cuando el usuario aprueba explícitamente algo (un prompt, un archivo, un enfoque), registrar por qué funcionó y replicar ese criterio. El prompt paso a paso con pasos numerados, verificación intermedia y reglas claras fue aprobado como "hecho con cabeza". Mantener ese nivel de estructura y claridad.
+=== PREFERENCIAS Y REGLAS DE TRABAJO ===
+1. **NADA LOCAL**: Todo cloud, siempre. No sugerir jamás ejecución local de modelos.
+2. **TODO GRATIS**: Cero coste económico. Si una opción cuesta dinero, descartarla.
+3. **NO REPETIR OPCIONES RECHAZADAS**: Si el usuario dice que no, no volver a mencionarlo.
+4. **INVESTIGAR ANTES DE AFIRMAR**: No asumir datos técnicos sin verificarlos.
+5. **PASO A PASO**: No cargar múltiples pasos a la vez. Ir de uno en uno, validando cada paso. LA VIOLACIÓN DE ESTA REGLA CAUSÓ EL FALLO DEL AUDIO.
+6. **ARCHIVOS SOLO CON CONTENIDO SÓLIDO**: No crear archivos vacíos o con contenido preliminar.
+7. **REVISAR .cm ANTES DE CADA RESPUESTA**: Consulta obligatoria.
+8. **EL USUARIO MANDA**: Si corrige algo, incorporarlo como preferencia y no repetir el error.
+9. **CIBERSEGURIDAD + HACKING ÉTICO + OTRAS APPS**: Tutor para Burp Suite, edición video, diseño, etc.
+10. **DOCUMENTACIÓN BILINGÜE**: Código en inglés, documentación en español.
+11. **CADENA DE FALLBACK**: Groq (principal) → OpenRouter → Modo texto.
+12. **MÍNIMA FRICCIÓN**: Abrir navegador y empezar. Sin instalaciones complejas.
+13. **NO DETENERSE HASTA COMPLETAR**: No parar hasta haber acabado la tarea y verificado.
+14. **RECONOCER ACIERTOS Y PATRONES**: Cuando el usuario aprueba algo, registrar por qué funcionó.
+15. **NO MODIFICAR SIN VALIDAR**: Antes de editar código que funciona, detenerse y pensar. Si el usuario no pidió el cambio explícitamente, no hacerlo.
+16. **CACHE BUSTING OBLIGATORIO**: Cada cambio en JS usa NUEVO NOMBRE DE ARCHIVO (`app.v{N}.js`). El HTML se actualiza para apuntar al nuevo archivo. Sin `?v=`, sin confiar en `Cache-Control`. Nombre nuevo = cero posibilidad de caché.
+17. **UNA FEATURE A LA VEZ**: No implementar una feature sobre otra no validada. Audio no se implementa hasta que texto-streaming haya funcionado sin fallos durante al menos 1 semana.
+18. **FEATURE COMPLEJA = DOCUMENTO DE ARQUITECTURA**: Antes de implementar cualquier feature no trivial (audio, pantalla, tools), escribir un documento de diseño que se revisa y aprueba antes de escribir código.
 
-=== PLAN DE FASES ===
-FASE 0: Foundation — ✅ Completa (estructura, Dockerfile, render.yaml, frontend)
-FASE 1: Core Agent — ✅ Parcial (Groq API, /chat endpoint, system prompt YAML)
-FASE 2: Voice Pipeline — ⬜ Pendiente (STT + TTS + WebSocket)
-FASE 3: Screen & Vision — ⬜ Pendiente (screen capture, análisis visual)
-FASE 4: Tools — ⬜ Pendiente (web search, YouTube, web scrape)
-FASE 5: Knowledge Base — ⬜ Pendiente (ChromaDB, persistencia)
-FASE 6: Frontend — ✅ Parcial (HTML/CSS/JS con paleta ELJOSE, chat funcional)
-FASE 7: Docker & Deploy — ✅ Completo (Dockerfile, render.yaml, deploy en Render)
-FASE 8: Documentation & Release — ⬜ Pendiente
+=== LECCIÓN DOCUMENTADA: FALLO DEL AUDIO (Julio 2026) ===
+Contexto: Se intentó implementar micrófono (STT vía Groq Whisper) sobre el chat de texto.
+El resultado fue un bucle de 7+ iteraciones donde ningún fix funcionaba, alimentado por:
+1. Cache JS del navegador que impedía que los cambios se reflejaran (resuelto con app.v{N}.js)
+2. Race condition entre getUserMedia (async) y el flujo de interacción del usuario
+3. Múltiples enfoques (push-to-talk → toggle → push-to-talk modificado) sin validar entre cambios
+4. Feature de audio implementada sobre streaming WS que tenía solo minutos de vida
+Resolución: Reset completo a texto puro. El audio se re-implementará desde cero con push-to-talk validado.
 
-=== DEPENDENCIAS CLAVE (usadas actualmente) ===
-- Python 3.12+
-- fastapi, uvicorn, pydantic
-- groq (SDK oficial)
-- pyyaml, python-dotenv
-- docker (solo para build en Render)
+=== PLAN DE FASES (actualizado post-fallo) ===
+[!] ANTES DE AVANZAR: La Fase 2 (Voice) está en pausa hasta que el proyecto demuestre estabilidad en texto durante mínimo 7 días.
 
-=== DEPENDENCIAS FUTURAS ===
-- websockets (Fase 2)
-- httpx, duckduckgo_search, edge-tts (Fase 2-4)
-- chromadb, sentence-transformers (Fase 5)
-
-=== NOTAS TÉCNICAS (actualizadas) ===
-- Render free tier: 512MB RAM, 0.1 CPU, sleep a los 15 min, 750h/mes, cold start 30-60s
-- Koyeb free tier: 1GB RAM, 0.5 CPU, NO sleep (siempre activo)
-- Groq free: 30 RPM, 6K TPM, 1K RPD (modelos estándar), Whisper 20 RPM, 2K audio req/día
-- OpenRouter free: 20 RPM, 50 RPD (sin compra), 1K RPD (con 10$ comprados alguna vez)
-- edge-tts: gratuito, llama a API de Microsoft Edge, voces naturales, múltiples idiomas
-- Groq tiene tool calling nativo y es compatible con OpenAI API format
+FASE 0: Foundation — ✅ Completa (estructura, Dockerfile, render.yaml)
+FASE 1: Core Agent — ✅ Completa (Groq API, /chat, /ws, streaming, memoria, YAML config)
+FASE 2: Voice Pipeline — ❌ REINICIAR (fallo documentado, pendiente de re-implementación)
+FASE 3: Screen & Vision — ⬜ Pendiente (pospuesto hasta Fase 2 estable)
+FASE 4-8: Pendientes
 
 === ESTRUCTURA DEL PROYECTO ===
 D:\TutorIA\
-├── agent/           # Config YAML, cliente Groq, prompts
+├── agent/
 │   ├── agent_config.yaml
 │   ├── llm_client.py
 │   └── prompts.py
-├── server/          # FastAPI server + endpoints
+├── server/
 │   └── main.py
-├── frontend/        # HTML/CSS/JS interfaz web
+├── frontend/
 │   ├── index.html
 │   ├── style.css
-│   └── app.js
-├── config/          # Configuración YAML
+│   ├── app.js
+│   └── app.v4.js (PENDIENTE DE ELIMINAR)
+├── config/
 │   ├── default.yaml
 │   └── settings.py
-├── docs/            # Documentación
+├── docs/
 │   └── MEMORIA.md
-├── tutoria.cm       # Este archivo (contexto)
+├── tutoria.cm
 ├── Dockerfile
 ├── render.yaml
 ├── requirements.txt
 └── .gitignore
 
-=== ÚLTIMA INTERACCIÓN (recordatorio) ===
-- Enfoque: TODO cloud (Groq API + OpenRouter), NADA local. NO OLLAMA, NO QUANT.
-- Repositorio: https://github.com/josecortessanchez28-png/TutorIA (vivo, git push vía token)
-- Despliegue: Render Web Service (tutoria-v1n7.onrender.com), auto-deploy desde GitHub
-- API keys: Groq key configurada en Render env vars. OpenRouter pendiente.
-- Groq API key: configurada en Render env vars (no visible en repositorio)
-- Modelo actual: llama-3.3-70b-versatile (vía Groq), temperatura 0.5, max_tokens 1024
-- Estado funcional v1.2: frontend visual (paleta ELJOSE) + /health + POST /chat funcional
-- System prompt: agent/agent_config.yaml externo (persona, reglas, formato)
-- Reglas activas: respuestas concisas (2-3 frases), sin markdown, texto plano legible en TTS
-- Frontend: index.html + style.css + app.js (chat fluido, typing indicator)
-- No se usa: torre local, git local, WSL, Docker Desktop. Solo GitHub API + Render.
-- Pendiente fase actual: documentar (cm + md) y planificar siguiente fase (Voice Pipeline)
+=== ÚLTIMA INTERACCIÓN ===
+- Estado actual: Texto puro funcionando (reset post-audio)
+- Micro eliminado del frontend y servidor
+- Cache busting: app.v{N}.js para futuros cambios JS
+- Siguiente: Estabilizar y validar texto antes de re-intentar audio
+- Lección principal: Una feature a la vez, validada antes de pasar a la siguiente
+- Estrategia audio futura: push-to-talk (NUNCA toggle), getUserMedia 1 vez, file versionado
